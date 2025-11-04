@@ -126,8 +126,7 @@ Setup:
     RecordData EQU 0x24 ;Saves Data for EEPROM
     RecordAddress EQU 0x25 ;Saves address for EEPROM
     IsPlaying EQU 0x26 ;Record/Play Mode
-    TotalData EQU 0x27 ;Total Records
-    Count1 EQU 0x28
+    Count1 EQU 0x27
 
     MOVLW 0XFA
     MOVWF TIMER_COUNT
@@ -147,25 +146,30 @@ Interrupt:
     MOVF STATUS, 0
     MOVWF STATS_SAVE
 
-    BTFSC PORTB,0
+    ;Check Which Button caused the interrupt
+    BTFSC PORTB,0 ;Record Button
     GOTO Record
-    BTFSC PORTB,1
+    BTFSC PORTB,1 ;Play Button
     GOTO StartPlay
     
+    ;No button was pressed. Timer Interrupt
     DECFSZ TIMER_COUNT,F
     GOTO INTERRUPT_END ; If counter not zero, exit
     
+    ;Checks to see if PIC should Playback or Standby
     BTFSC IsPlaying,0
     GOTO Play
     
+    ;Standby (flashes an S)
     MOVF PORTC,0
     XORLW 0x53
     BTFSC STATUS,2
     GOTO Blink
     
-    MOVLW 0x53
+    MOVLW 0x53 ;S
     MOVWF PORTC
     
+;Sets a One Second Timer for both Playback and Standby
 OneSecondTimer:
     MOVLW 0xFA
     MOVWF TIMER_COUNT
@@ -176,26 +180,28 @@ OneSecondTimer:
     GOTO INTERRUPT_END
     
 Blink:
-    MOVLW 0x00
+    MOVLW 0x00 ;Blank
     MOVWF PORTC
     GOTO OneSecondTimer
     
+;Sets/Starts the Playback mode
 StartPlay:
     BSF IsPlaying,0
     GOTO INTERRUPT_END
-    
+   
+;Does Playback  
 Play:
-    CLRF INTCON
-    INCF RecordAddress
-    CALL ReadEEPROM
+    CLRF INTCON ;Disables Interrupts
+    INCF RecordAddress ;Sets a new Address for a new entry to EEPROM
+    CALL ReadEEPROM ;Reads data and outputs to PORTC
     
-    XORLW 0xFF
+    XORLW 0xFF ;Was Data FF (End Playback Byte)?
     BTFSC STATUS,2
     GOTO STOP ;Result was 0. Matched
-    GOTO OneSecondTimer
+    GOTO OneSecondTimer ;Continue Playback
 
 Record:
-    CLRF INTCON
+    CLRF INTCON ;Disables Interrupts
     ;Checks Keypad
     MOVLW 0x08 ;Row 4
     MOVWF PORTA
@@ -278,31 +284,32 @@ Record:
     GOTO Record
     
 MaxData:
-    MOVLW 0xFF
+    MOVLW 0xFF ;End Playback Byte
     MOVWF RecordData
-    INCF RecordAddress
-    CALL WriteEEPROM
+    INCF RecordAddress ;Sets a new Address for a new entry to EEPROM
+    CALL WriteEEPROM ;Writes the End Playback Byte
     GOTO STOP
-    
-STOP:
-    MOVF RecordAddress,0
-    MOVWF TotalData
-    
-    CLRF RecordAddress
-    CLRF IsPlaying
+  
+;Stop Button was pressed.
+STOP:  
+    CLRF RecordAddress ;Resets the Address back to 0
+    CLRF IsPlaying ;Turns of Playback Mode
     GOTO INTERRUPT_END
 
+;Keypad button was pressed
 KEYPAD:
     MOVWF RecordData
-    INCF RecordAddress
-    CALL WriteEEPROM
+    INCF RecordAddress ;Sets a new Address for a new entry to EEPROM
+    CALL WriteEEPROM ;Writes the Keypad press to new entry
     
+    ;Delay so that the button has some before triggering again
     MOVLW 0xFF
     MOVWF Count1
     Loop1:
     DECFSZ Count1
     GOTO Loop1
     
+    ;Waits until keypad is no longer being pressed (debounce of sorts)
     Test:
     BTFSC PORTB,7
     GOTO Test
@@ -314,10 +321,10 @@ KEYPAD:
     GOTO Test
 
     MOVF RecordAddress,0
-    XORLW 0x0A
+    XORLW 0x0A ;Checks to see if Address amount is 10
     BTFSC STATUS,2
-    GOTO MaxData
-    GOTO Record
+    GOTO MaxData ;Amount is 10. Write Playback End Byte and Stop Recording
+    GOTO Record ;Amount is less than 10, Continue Recording
     
 WriteEEPROM:
     MOVF RecordAddress,0 ;Choses Address
@@ -374,7 +381,7 @@ INTERRUPT_END:
     BCF STATUS,6
     BCF PIR1,1 ;Clears TMR2 to PR2 Interupt Flag
     MOVLW 0xC8
-    MOVWF INTCON
+    MOVWF INTCON ;Reeneables Interrupts
     
     ;Load the W stuff
     MOVF STATS_SAVE,0
