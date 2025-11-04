@@ -178,7 +178,8 @@ OneSecondTimer:
     MOVLW 0X06
     MOVWF T2CON
     GOTO INTERRUPT_END
-    
+ 
+;Flashes a Blank
 Blink:
     MOVLW 0x00 ;Blank
     MOVWF PORTC
@@ -200,6 +201,7 @@ Play:
     GOTO STOP ;Result was 0. Matched
     GOTO OneSecondTimer ;Continue Playback
 
+;Continously polls Key pads and Stop Button
 Record:
     CLRF INTCON ;Disables Interrupts
     ;Checks Keypad
@@ -279,10 +281,11 @@ Record:
     BTFSC PORTB,7
     GOTO KEYPAD
     
-    BTFSC PORTB,2
-    GOTO MaxData
-    GOTO Record
+    BTFSC PORTB,2 ;Stop Button
+    GOTO MaxData ;Write End Playback Byte and stop recording
+    GOTO Record ;No buttons were pressed. Repoll the buttons
     
+;Writes End Playback Byte
 MaxData:
     MOVLW 0xFF ;End Playback Byte
     MOVWF RecordData
@@ -290,7 +293,7 @@ MaxData:
     CALL WriteEEPROM ;Writes the End Playback Byte
     GOTO STOP
   
-;Stop Button was pressed.
+;Resets Record Address and Playback Mode
 STOP:  
     CLRF RecordAddress ;Resets the Address back to 0
     CLRF IsPlaying ;Turns of Playback Mode
