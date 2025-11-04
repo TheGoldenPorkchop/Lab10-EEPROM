@@ -125,14 +125,14 @@ Setup:
     TIMER_COUNT EQU 0X23 ;Software counter for overflows
     RecordData EQU 0x24 ;Saves Data for EEPROM
     RecordAddress EQU 0x25 ;Saves address for EEPROM
-    ModeSelect EQU 0x26 ;Record/Play Mode
+    IsPlaying EQU 0x26 ;Record/Play Mode
     TotalData EQU 0x27 ;Total Records
     Count1 EQU 0x28
 
     MOVLW 0XFA
     MOVWF TIMER_COUNT
     CLRF RecordAddress
-    CLRF ModeSelect
+    CLRF IsPlaying
 
     GOTO MainLoop
 ;-------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ Interrupt:
     DECFSZ TIMER_COUNT,F
     GOTO INTERRUPT_END ; If counter not zero, exit
     
-    BTFSC ModeSelect,0
+    BTFSC IsPlaying,0
     GOTO Play
     
     MOVF PORTC,0
@@ -181,7 +181,7 @@ Blink:
     GOTO OneSecondTimer
     
 StartPlay:
-    BSF ModeSelect,0
+    BSF IsPlaying,0
     GOTO INTERRUPT_END
     
 Play:
@@ -289,7 +289,7 @@ STOP:
     MOVWF TotalData
     
     CLRF RecordAddress
-    CLRF ModeSelect
+    CLRF IsPlaying
     GOTO INTERRUPT_END
 
 KEYPAD:
@@ -312,7 +312,6 @@ KEYPAD:
     GOTO Test
     BTFSC PORTB,4
     GOTO Test
-    
 
     MOVF RecordAddress,0
     XORLW 0x0A
@@ -348,8 +347,6 @@ WriteEEPROM:
     GOTO ReadEEPROM
     
 ReadEEPROM:
-    CLRF INTCON
-    
     BCF STATUS,5
     BCF STATUS,6 ;Bank 0
     MOVF RecordAddress,0 ;Choses Address
@@ -376,13 +373,8 @@ INTERRUPT_END:
     BCF STATUS,5
     BCF STATUS,6
     BCF PIR1,1 ;Clears TMR2 to PR2 Interupt Flag
-    ;BSF PIE1,2
     MOVLW 0xC8
     MOVWF INTCON
-    
-    ;TESTS
-    ;MOVLW 0x53
-    ;MOVWF PORTC
     
     ;Load the W stuff
     MOVF STATS_SAVE,0

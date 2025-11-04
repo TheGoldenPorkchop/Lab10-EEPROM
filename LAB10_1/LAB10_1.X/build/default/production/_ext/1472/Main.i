@@ -2440,27 +2440,21 @@ Setup:
     TIMER_COUNT EQU 0X23 ;Software counter for overflows
     RecordData EQU 0x24 ;Saves Data for EEPROM
     RecordAddress EQU 0x25 ;Saves address for EEPROM
-    ModeSelect EQU 0x26 ;Record/Play Mode
+    IsPlaying EQU 0x26 ;Record/Play Mode
     TotalData EQU 0x27 ;Total Records
     Count1 EQU 0x28
-    Count2 EQU 0x29
-
 
     MOVLW 0XFA
     MOVWF TIMER_COUNT
     CLRF RecordAddress
-    CLRF ModeSelect
+    CLRF IsPlaying
 
     GOTO MainLoop
 ;-------------------------------------------------------------------------------
 ;Main Program Loop (Loops Forever)
 MainLoop:
-    ;MOVLW 0x53
-    ;MOVWF PORTC
-
-
     GOTO MainLoop
-;-------------------
+
 ;-------------------------------------------------------------------------------
 ;Interrupt Service Routine
 Interrupt:
@@ -2473,14 +2467,10 @@ Interrupt:
     BTFSC PORTB,1
     GOTO StartPlay
 
-
-    GOTO TimerCountCheck
-
-TimerCountCheck:
     DECFSZ TIMER_COUNT,F
     GOTO INTERRUPT_END ; If counter not zero, exit
 
-    BTFSC ModeSelect,0
+    BTFSC IsPlaying,0
     GOTO Play
 
     MOVF PORTC,0
@@ -2506,21 +2496,13 @@ Blink:
     GOTO OneSecondTimer
 
 StartPlay:
-    BSF ModeSelect,0
+    BSF IsPlaying,0
     GOTO INTERRUPT_END
 
 Play:
     CLRF INTCON
     INCF RecordAddress
     CALL ReadEEPROM
-
-
-
-    ;MOVF RecordAddress,0
-    ;XORWF TotalData
-    ;BTFSC STATUS,2
-    ;GOTO STOP ;Result was 0. Matched
-    ;GOTO OneSecondTimer
 
     XORLW 0xFF
     BTFSC STATUS,2
@@ -2622,7 +2604,7 @@ STOP:
     MOVWF TotalData
 
     CLRF RecordAddress
-    CLRF ModeSelect
+    CLRF IsPlaying
     GOTO INTERRUPT_END
 
 KEYPAD:
@@ -2645,7 +2627,6 @@ KEYPAD:
     GOTO Test
     BTFSC PORTB,4
     GOTO Test
-
 
     MOVF RecordAddress,0
     XORLW 0x0A
@@ -2681,7 +2662,7 @@ WriteEEPROM:
     GOTO ReadEEPROM
 
 ReadEEPROM:
-    CLRF INTCON
+    ;CLRF INTCON
 
     BCF STATUS,5
     BCF STATUS,6 ;Bank 0
